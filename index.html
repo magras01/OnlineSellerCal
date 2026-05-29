@@ -1,0 +1,1980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seller Pricing Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #eef2f8;
+    --surface: #ffffff;
+    --surface2: #f4f7fc;
+    --surface3: #e8edf7;
+    --border: rgba(59,97,198,0.1);
+    --border2: rgba(59,97,198,0.18);
+    --text: #1a2240;
+    --text2: #5a6589;
+    --text3: #7a86aa;
+    --accent: #3b61c6;
+    --accent2: #5b7fff;
+    --navy: #253580;
+    --green: #1ab87a;
+    --red: #e84040;
+    --yellow: #f5a623;
+    --font-ui: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(59,97,198,0.07) 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* HEADER */
+  header { margin-bottom: 40px; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+  .header-left {}
+  .logo-tag { display: inline-flex; align-items: center; gap: 8px; background: rgba(59,97,198,0.08); border: 1px solid rgba(59,97,198,0.2); border-radius: 100px; padding: 4px 12px 4px 8px; margin-bottom: 12px; }
+  .logo-dot { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(0.8)} }
+  .logo-text { font-size: 11.5px; font-weight: 600; color: var(--accent); letter-spacing: .08em; text-transform: uppercase; font-family: var(--font-ui); }
+  h1 { font-size: clamp(26px, 3.5vw, 38px); font-weight: 800; line-height: 1.08; letter-spacing: -.03em; color: var(--navy); font-family: var(--font-ui); }
+  h1 span { color: var(--accent); }
+  .header-sub { margin-top: 10px; font-size: 14px; color: var(--text2); font-weight: 400; line-height: 1.6; letter-spacing: -.01em; }
+
+  .header-actions { display: flex; gap: 10px; align-items: center; padding-top: 4px; }
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 20px; border-radius: 9px; font-family: var(--font-ui); font-size: 13px; font-weight: 600; letter-spacing: -.01em; cursor: pointer; border: none; transition: all .15s; }
+  .btn-ghost { background: #fff; border: 1px solid var(--border2); color: var(--text2); }
+  .btn-ghost:hover { background: var(--surface2); color: var(--accent); border-color: var(--accent); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #2e50b0; transform: translateY(-1px); }
+  .btn svg { width: 14px; height: 14px; }
+
+  /* CURRENCY SELECT */
+  .currency-wrap { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; }
+  .currency-wrap label { font-size: 12px; font-weight: 500; color: var(--text3); letter-spacing: -.01em; }
+  select#currency-select {
+    font-family: var(--font-ui); font-size: 12.5px; font-weight: 600; color: var(--text);
+    background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px;
+    padding: 6px 10px; outline: none; cursor: pointer; transition: border-color .15s;
+  }
+  select#currency-select:focus { border-color: var(--accent); }
+
+  /* WARN BANNER */
+  .warn-banner { display: none; align-items: center; gap: 10px; background: rgba(232,64,64,0.07); border: 1px solid rgba(232,64,64,0.25); border-radius: 10px; padding: 12px 16px; margin-bottom: 24px; font-size: 13px; font-weight: 500; letter-spacing: -.01em; color: #c02020; }
+  .warn-banner.show { display: flex; }
+  .warn-icon { font-size: 16px; }
+
+  /* KPI STRIP */
+  .kpi-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 32px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 24px; position: relative; overflow: hidden; transition: border-color .2s, box-shadow .2s; box-shadow: 0 2px 8px rgba(59,97,198,0.06); }
+  .kpi:hover { border-color: var(--border2); box-shadow: 0 4px 16px rgba(59,97,198,0.12); }
+  .kpi::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; border-radius: 14px 14px 0 0; background: var(--kpi-color, var(--accent)); opacity: .6; }
+  .kpi-label { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--text3); margin-bottom: 10px; font-family: var(--font-ui); }
+  .kpi-value { font-family: var(--font-mono); font-size: 24px; font-weight: 600; letter-spacing: -.03em; line-height: 1.1; }
+  .kpi-sub { font-size: 12.5px; color: var(--text3); margin-top: 5px; font-weight: 400; letter-spacing: -.01em; }
+  .kpi.green { --kpi-color: var(--green); }
+  .kpi.green .kpi-value { color: var(--green); }
+  .kpi.red { --kpi-color: var(--red); }
+  .kpi.red .kpi-value { color: var(--red); }
+  .kpi.yellow { --kpi-color: var(--yellow); }
+  .kpi.yellow .kpi-value { color: var(--yellow); }
+  .kpi.blue { --kpi-color: var(--accent); }
+  .kpi.blue .kpi-value { color: var(--accent); }
+
+  /* MAIN LAYOUT */
+  .main-grid { display: grid; grid-template-columns: 1fr 360px; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+  /* SECTIONS */
+  .section { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(59,97,198,0.06); }
+  .section-header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; background: var(--surface2); }
+  .section-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; flex: 1; font-family: var(--font-ui); color: var(--text); }
+  .section-chevron { color: var(--text3); font-size: 12px; transition: transform .25s; }
+  .section.collapsed .section-chevron { transform: rotate(-90deg); }
+  .section.collapsed .section-body { display: none; }
+  .section-body { padding: 22px 24px; }
+
+  /* INPUTS */
+  .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 640px) {
+    .input-grid { grid-template-columns: 1fr; }
+    .input-grid > * { grid-column: 1 !important; }
+    .field-label { flex-direction: column; align-items: flex-start; gap: 2px; }
+    .field-hint { font-size: 11px; }
+  }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field-label { font-size: 12px; font-weight: 500; color: var(--text2); display: flex; align-items: center; justify-content: space-between; letter-spacing: -.01em; line-height: 1.4; }
+  .field-hint { font-size: 11.5px; color: var(--text3); font-weight: 400; letter-spacing: 0; }
+  .input-wrap { position: relative; }
+  .input-prefix { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--text3); pointer-events: none; min-width: 18px; }
+  .input-suffix { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--text3); pointer-events: none; }
+  input[type=number] {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px;
+    color: var(--text); font-family: var(--font-mono); font-size: 13.5px; font-weight: 500;
+    padding: 10px 13px; outline: none; transition: border-color .15s, background .15s, box-shadow .15s;
+    -moz-appearance: textfield; letter-spacing: -.02em;
+  }
+  input[type=text] {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px;
+    color: var(--text); font-family: var(--font-ui); font-size: 13.5px; font-weight: 500;
+    padding: 10px 13px; outline: none; transition: border-color .15s, background .15s, box-shadow .15s;
+    letter-spacing: -.01em;
+  }
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+  input[type=number]:focus, input[type=text]:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(59,97,198,0.1); outline: none; }
+  input.has-prefix { padding-left: 32px; }
+  input.has-suffix { padding-right: 28px; }
+
+  /* SECTION COLORS */
+  .sec-cost .section-icon    { background: rgba(59,97,198,0.1); }
+  .sec-addl .section-icon    { background: rgba(26,184,122,0.1); }
+  .sec-fees .section-icon    { background: rgba(91,127,255,0.1); }
+  .sec-overhead .section-icon{ background: rgba(245,166,35,0.1); }
+
+  /* RIGHT PANEL */
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; position: sticky; top: 24px; box-shadow: 0 4px 20px rgba(59,97,198,0.1); }
+  .panel-header { padding: 22px 24px 18px; border-bottom: 1px solid var(--border); background: var(--navy); border-radius: 16px 16px 0 0; }
+  .panel-title { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,0.6); margin-bottom: 6px; font-family: var(--font-ui); }
+  .panel-price { font-family: var(--font-mono); font-size: 34px; font-weight: 600; color: #fff; letter-spacing: -.04em; line-height: 1.1; }
+  .panel-price-label { font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 5px; font-weight: 400; letter-spacing: -.01em; }
+
+  /* COST BARS */
+  .bars { padding: 20px 24px 22px; background: var(--navy); }
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+  .bar-row:last-child { margin-bottom: 0; }
+  .bar-label { font-size: 12.5px; font-weight: 400; color: rgba(255,255,255,0.85); width: 132px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -.01em; }
+  .bar-track { flex: 1; height: 6px; background: rgba(255,255,255,0.12); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width .4s cubic-bezier(.4,0,.2,1); }
+  .bar-amt { font-family: var(--font-mono); font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,0.95); min-width: 60px; text-align: right; letter-spacing: -.02em; }
+
+  /* DIVIDER */
+  .panel-divider { height: 1px; background: var(--border); margin: 0; }
+
+  /* MONTHLY */
+  .monthly { padding: 18px 24px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .monthly-item { background: var(--surface2); border-radius: 10px; padding: 13px 14px; border: 1px solid var(--border); }
+  .monthly-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--text2); margin-bottom: 7px; font-family: var(--font-ui); }
+  .monthly-val { font-family: var(--font-mono); font-size: 17px; font-weight: 600; letter-spacing: -.03em; color: var(--text); }
+
+  /* BREAKDOWN TABLE */
+  .breakdown { padding: 4px 24px 20px; }
+  .breakdown-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .breakdown-row:last-child { border-bottom: none; }
+  .breakdown-row.total { padding-top: 12px; }
+  .breakdown-name { font-size: 13px; font-weight: 400; color: var(--text2); letter-spacing: -.01em; }
+  .breakdown-val { font-family: var(--font-mono); font-size: 13px; font-weight: 500; letter-spacing: -.02em; }
+  .breakdown-row.total .breakdown-name { font-weight: 600; color: var(--text); font-size: 13px; letter-spacing: -.02em; }
+  .breakdown-row.total .breakdown-val { font-size: 15px; font-weight: 600; color: var(--accent); letter-spacing: -.03em; }
+
+  /* PRESET TABS */
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .preset-btn { padding: 7px 16px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 100px; font-family: var(--font-ui); font-size: 12.5px; font-weight: 600; letter-spacing: -.01em; color: var(--text2); cursor: pointer; transition: all .15s; }
+  .preset-btn:hover, .preset-btn.active { background: rgba(59,97,198,0.1); border-color: var(--accent); color: var(--accent); }
+
+  /* ANIMATIONS */
+  @keyframes fadeInUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+  .kpi { animation: fadeInUp .4s ease both; }
+  .kpi:nth-child(1){animation-delay:.05s} .kpi:nth-child(2){animation-delay:.1s}
+  .kpi:nth-child(3){animation-delay:.15s} .kpi:nth-child(4){animation-delay:.2s}
+  .kpi:nth-child(5){animation-delay:.25s} .kpi:nth-child(6){animation-delay:.3s}
+
+  .flash { animation: flashVal .3s ease; }
+  @keyframes flashVal { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* FOOTER */
+  footer { margin-top: 56px; text-align: center; font-size: 12.5px; color: var(--text2); letter-spacing: -.01em; line-height: 1.6; }
+
+  /* DARK MODE */
+  body.dark {
+    --bg: #0d1220;
+    --surface: #131d2e;
+    --surface2: #1a2640;
+    --surface3: #1e2e4a;
+    --border: rgba(91,127,255,0.18);
+    --border2: rgba(91,127,255,0.28);
+    --text: #e2e8f5;
+    --text2: #8fa3c8;
+    --text3: #6b7fa0;
+    --navy: #1a2a50;
+  }
+  body.dark::before {
+    background-image: radial-gradient(circle, rgba(91,127,255,0.12) 1px, transparent 1px);
+  }
+  body.dark h1 { color: #ffffff; }
+  body.dark input[type=text],
+  body.dark input[type=number] { color: #e2e8f5; }
+  body.dark input[type=text]:focus,
+  body.dark input[type=number]:focus { background: var(--surface3); color: #e2e8f5; }
+  body.dark input::placeholder { color: var(--text3); }
+  body, .kpi, .section, .panel, input[type=text], input[type=number], select, .btn, .preset-btn, .monthly-item {
+    transition: background-color .25s, border-color .25s, color .25s, box-shadow .25s;
+  }
+
+  /* DARK MODE TOGGLE BUTTON */
+  #btn-dark-mode {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border2);
+    background: var(--surface2); color: var(--text2); cursor: pointer;
+    transition: all .15s; flex-shrink: 0;
+  }
+  #btn-dark-mode:hover { background: var(--surface3); color: var(--accent); border-color: var(--accent); }
+  #btn-dark-mode svg { width: 15px; height: 15px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="header-left">
+      <div class="logo-tag"><div class="logo-dot"></div><span class="logo-text">Live calculator</span></div>
+      <h1>Online Seller<br><span>Pricing</span> Calculator</h1>
+      <p class="header-sub">Enter your costs — profit and pricing update instantly.</p>
+      <div class="currency-wrap">
+        <label for="currency-select">Currency</label>
+        <select id="currency-select" onchange="setCurrency(this.value)">
+          <option value="$">USD ($)</option>
+          <option value="€">EUR (€)</option>
+          <option value="£">GBP (£)</option>
+          <option value="₱" selected>PHP (₱)</option>
+          <option value="RM">MYR (RM)</option>
+          <option value="S$">SGD (S$)</option>
+          <option value="₹">INR (₹)</option>
+          <option value="¥">CNY (¥)</option>
+          <option value="A$">AUD (A$)</option>
+          <option value="C$">CAD (C$)</option>
+        </select>
+        <button id="btn-dark-mode" onclick="toggleDarkMode()" title="Switch to dark mode">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+      <div class="presets" style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+        <button class="preset-btn" onclick="applyPreset('current',this)">Your current setup</button>
+        <button class="preset-btn" onclick="applyPreset('shopee',this)">Shopee</button>
+        <button class="preset-btn" onclick="applyPreset('lazada',this)">Lazada</button>
+        <button class="preset-btn" onclick="applyPreset('tiktok',this)">TikTok Shop</button>
+        <button class="preset-btn" onclick="applyPreset('wholesale',this)">Wholesale</button>
+        <div id="custom-preset-chips" style="display:contents;"></div>
+        <button id="btn-manage-presets" style="display:inline-flex;align-items:center;gap:5px;padding:7px 13px;background:transparent;border:1px dashed var(--border2);border-radius:100px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add preset
+        </button>
+      </div>
+    </div>
+    <div class="header-actions" id="header-actions-bar">
+      <button class="btn btn-ghost action-btn" id="btn-save-product">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save
+      </button>
+      <button class="btn btn-ghost action-btn" id="btn-update-product" style="display:none;" onclick="updateProduct()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Update
+      </button>
+      <button class="btn btn-ghost action-btn" onclick="resetDefaults()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Reset
+      </button>
+      <button class="btn btn-ghost action-btn" onclick="document.getElementById('import-file-input').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Import
+      </button>
+      <input type="file" id="import-file-input" accept=".xlsx,.xls" style="display:none;">
+      <button class="btn btn-primary action-btn" onclick="exportData()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 10 12 15 7 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
+    </div>
+  </header>
+
+  <!-- SAVE MODAL -->
+  <div id="save-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:28px;width:100%;max-width:420px;margin:0 16px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;font-family:var(--font-ui);">Save product</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:20px;font-family:var(--font-ui);">Give this pricing setup a name to save it.</div>
+      <input type="text" id="save-name-input" placeholder="e.g. Blue Wireless Earbuds"
+        style="width:100%;padding:11px 14px;font-family:var(--font-ui);font-size:14px;background:var(--surface2);border:1px solid var(--border2);border-radius:9px;color:var(--text);outline:none;margin-bottom:16px;"
+        onfocus="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 0 3px rgba(59,97,198,0.1)'"
+        onblur="this.style.borderColor='';this.style.boxShadow=''">
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="closeSaveModal()" style="padding:9px 20px;background:transparent;border:1px solid var(--border2);border-radius:8px;font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;">Cancel</button>
+        <button id="save-confirm-btn" style="padding:9px 20px;background:var(--accent);border:none;border-radius:8px;font-family:var(--font-ui);font-size:13px;font-weight:600;color:#fff;cursor:pointer;">Save product</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOM PRESET MODAL -->
+  <div id="custom-preset-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:28px;width:100%;max-width:460px;margin:0 16px;box-shadow:0 20px 60px rgba(0,0,0,0.15);">
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px;font-family:var(--font-ui);" id="cpm-title">Add preset</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:20px;font-family:var(--font-ui);">Save your platform fee settings as a reusable preset.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+        <div style="grid-column:span 2;">
+          <div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;font-family:var(--font-ui);">Preset name</div>
+          <input type="text" id="cpm-name" placeholder="e.g. Amazon US, Lazada…" style="width:100%;padding:10px 13px;font-family:var(--font-ui);font-size:13.5px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);outline:none;" onfocus="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 0 3px rgba(59,97,198,0.1)'" onblur="this.style.borderColor='';this.style.boxShadow=''">
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;font-family:var(--font-ui);">Platform fee (%)</div>
+          <input type="number" id="cpm-platform" placeholder="0" min="0" max="100" step="0.5" style="width:100%;padding:10px 13px;font-family:var(--font-mono);font-size:13px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);outline:none;-moz-appearance:textfield;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor=''">
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;font-family:var(--font-ui);">Affiliate commission (%)</div>
+          <input type="number" id="cpm-affiliate" placeholder="0" min="0" max="100" step="0.5" style="width:100%;padding:10px 13px;font-family:var(--font-mono);font-size:13px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);outline:none;-moz-appearance:textfield;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor=''">
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;font-family:var(--font-ui);">Tax rate (%)</div>
+          <input type="number" id="cpm-tax" placeholder="0" min="0" max="100" step="0.5" style="width:100%;padding:10px 13px;font-family:var(--font-mono);font-size:13px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);outline:none;-moz-appearance:textfield;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor=''">
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;font-family:var(--font-ui);">Default selling price</div>
+          <input type="number" id="cpm-price" placeholder="Optional" min="0" style="width:100%;padding:10px 13px;font-family:var(--font-mono);font-size:13px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);outline:none;-moz-appearance:textfield;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor=''">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="closeCustomPresetModal()" style="padding:9px 20px;background:transparent;border:1px solid var(--border2);border-radius:8px;font-family:var(--font-ui);font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;">Cancel</button>
+        <button id="cpm-confirm-btn" style="padding:9px 22px;background:var(--accent);border:none;border-radius:8px;font-family:var(--font-ui);font-size:13px;font-weight:600;color:#fff;cursor:pointer;">Save preset</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="saved-bar" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 20px;margin-bottom:20px;box-shadow:0 2px 8px rgba(59,97,198,0.06);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <span style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);font-family:var(--font-ui);">Saved products</span>
+      <span style="font-size:11px;color:var(--text3);font-family:var(--font-ui);">Click to load</span>
+    </div>
+    <div id="saved-chips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+  </div>
+
+  <div class="warn-banner" id="warnBanner">
+    <span class="warn-icon">⚠</span>
+    <span id="warnText">Selling below break-even! You're losing money on each unit.</span>
+  </div>
+
+  <!-- PRODUCT NAME -->
+  <div style="margin-bottom:20px;">
+    <div class="field">
+      <label class="field-label">Product name <span class="field-hint">Optional label</span></label>
+      <div class="input-wrap">
+        <input type="text" id="i-name" value="" placeholder="e.g. Wireless Earbuds — Blue">
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-strip">
+    <div class="kpi blue"><div class="kpi-label">Cost per unit</div><div class="kpi-value" id="k-cost">$0</div><div class="kpi-sub">total cost to sell 1 item</div></div>
+    <div class="kpi blue"><div class="kpi-label">Break-even price</div><div class="kpi-value" id="k-bep">$0</div><div class="kpi-sub">minimum to sell at</div></div>
+    <div class="kpi" id="k-suggested-card"><div class="kpi-label">Suggested price (3× cost)</div><div class="kpi-value" id="k-suggested">$0</div><div class="kpi-sub" id="k-suggested-sub">3× your cost per unit</div></div>
+    <div class="kpi" id="k-profit-card"><div class="kpi-label">Profit per item</div><div class="kpi-value" id="k-profit">$0</div><div class="kpi-sub" id="k-profit-sub">net after all fees</div></div>
+    <div class="kpi" id="k-margin-card"><div class="kpi-label">Profit margin</div><div class="kpi-value" id="k-margin">0%</div><div class="kpi-sub">of selling price</div></div>
+    <div class="kpi" id="k-monthly-card"><div class="kpi-label">Monthly profit</div><div class="kpi-value" id="k-monthly">$0</div><div class="kpi-sub" id="k-monthly-sub">at target volume</div></div>
+    <div class="kpi blue"><div class="kpi-label">Monthly revenue</div><div class="kpi-value" id="k-revenue">$0</div><div class="kpi-sub">gross sales</div></div>
+    <div class="kpi" id="k-ads-card"><div class="kpi-label">Total ads spend</div><div class="kpi-value" id="k-ads">₱0</div><div class="kpi-sub" id="k-ads-sub">monthly ad budget</div></div>
+  </div>
+
+  <div class="main-grid">
+    <div class="left-col">
+
+      <!-- PRODUCT COST -->
+      <div class="section sec-cost" id="sec-cost">
+        <div class="section-header" onclick="toggleSection('sec-cost')">
+          <div class="section-icon">📦</div>
+          <div class="section-title">Product Cost (COGS)</div>
+          <span class="section-chevron">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="input-grid">
+            <div class="field" style="grid-column:span 2;">
+              <label class="field-label">Cost per unit <span class="field-hint">what you pay / manufacture per item</span></label>
+              <div class="input-wrap">
+                <span class="input-prefix currency-prefix">₱</span>
+                <input type="text" inputmode="numeric" id="i-cogs" value="" class="has-prefix" oninput="calc()">
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:16px;">
+            <div class="field">
+              <label class="field-label">Defect / return rate <span class="field-hint" id="defect-hint">% of units lost to defects or returns</span></label>
+              <div class="input-wrap">
+                <input type="number" id="i-defect" value="0" min="0" max="60" step="1" class="has-suffix"
+                  oninput="g('defect-hint').textContent=defectHint(+this.value);calc()"
+                  onfocus="if(this.value==='0')this.value=''"
+                  onblur="if(this.value===''||this.value==='-')this.value='0'">
+                <span class="input-suffix">%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADDITIONAL COSTS -->
+      <div class="section sec-addl" id="sec-addl">
+        <div class="section-header" onclick="toggleSection('sec-addl')">
+          <div class="section-icon">🔩</div>
+          <div class="section-title">Additional Costs per Unit</div>
+          <span class="section-chevron">▼</span>
+        </div>
+        <div class="section-body">
+          <div id="addl-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px;"></div>
+          <button id="btn-add-cost" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:rgba(59,97,198,0.08);border:1px dashed rgba(59,97,198,0.3);border-radius:8px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--accent);cursor:pointer;transition:all .15s;" onmouseover="this.style.background='rgba(59,97,198,0.14)'" onmouseout="this.style.background='rgba(59,97,198,0.08)'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add cost
+          </button>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:12px;font-weight:600;color:var(--text2);font-family:var(--font-ui);">Total additional costs</span>
+            <span style="font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--accent);" id="addl-total">$0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FEES -->
+      <div class="section sec-fees" id="sec-fees">
+        <div class="section-header" onclick="toggleSection('sec-fees')">
+          <div class="section-icon">💸</div>
+          <div class="section-title">Platform & Fees</div>
+          <span class="section-chevron">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="input-grid">
+            <div class="field">
+              <label class="field-label">Platform fee <span class="field-hint">TikTok ~8%, Shopee ~25%</span></label>
+              <div class="input-wrap">
+                <input type="number" id="i-platform" value="0" min="0" max="100" step="0.5" class="has-suffix" oninput="calc()" onfocus="if(this.value==='0')this.value=''" onblur="if(this.value===''||this.value==='-')this.value='0'">
+                <span class="input-suffix">%</span>
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">Affiliate commission <span class="field-hint">% paid to affiliates</span></label>
+              <div class="input-wrap">
+                <input type="number" id="i-affiliate" value="0" min="0" max="100" step="0.5" class="has-suffix" oninput="calc()" onfocus="if(this.value==='0')this.value=''" onblur="if(this.value===''||this.value==='-')this.value='0'">
+                <span class="input-suffix">%</span>
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">Tax rate <span class="field-hint">VAT or income tax</span></label>
+              <div class="input-wrap">
+                <input type="number" id="i-tax" value="0" min="0" max="100" step="0.5" class="has-suffix" oninput="calc()" onfocus="if(this.value==='0')this.value=''" onblur="if(this.value===''||this.value==='-')this.value='0'">
+                <span class="input-suffix">%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OVERHEAD & PRICING -->
+      <div class="section sec-overhead" id="sec-overhead">
+        <div class="section-header" onclick="toggleSection('sec-overhead')">
+          <div class="section-icon">🎯</div>
+          <div class="section-title">Overhead & Pricing</div>
+          <span class="section-chevron">▼</span>
+        </div>
+        <div class="section-body">
+          <div class="input-grid">
+            <div class="field" style="grid-column:span 2;">
+              <label class="field-label">Monthly ad spend <span class="field-hint" id="ad-hint">Facebook, TikTok, Shopee Ads, etc.</span></label>
+              <div class="input-wrap">
+                <span class="input-prefix currency-prefix">₱</span>
+                <input type="text" inputmode="numeric" id="i-adspend" value="" class="has-prefix" placeholder="0" oninput="calc()">
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">Packaging per item <span class="field-hint">boxes, bags, labels</span></label>
+              <div class="input-wrap">
+                <span class="input-prefix currency-prefix">₱</span>
+                <input type="text" inputmode="numeric" id="i-packaging" value="" class="has-prefix" oninput="calc()">
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">Labor per item <span class="field-hint">your time!</span></label>
+              <div class="input-wrap">
+                <span class="input-prefix currency-prefix">₱</span>
+                <input type="text" inputmode="numeric" id="i-labor" value="" class="has-prefix" oninput="calc()">
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">Selling price <span class="field-hint">what you charge</span></label>
+              <div class="input-wrap">
+                <span class="input-prefix currency-prefix">₱</span>
+                <input type="text" inputmode="numeric" id="i-price" value="" class="has-prefix" oninput="onPriceInput()">
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label">Target monthly units <span class="field-hint">your sales goal</span></label>
+              <div class="input-wrap">
+                <input type="text" inputmode="numeric" id="i-units" value="" oninput="calc()">
+              </div>
+            </div>
+          </div>
+
+          <!-- TARGET PROFIT -->
+          <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--border);">
+            <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:12px;font-family:var(--font-ui);">Target profit calculator</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end;">
+              <div class="field">
+                <label class="field-label">I want to earn <span class="field-hint">profit per item</span></label>
+                <div class="input-wrap">
+                  <span class="input-prefix currency-prefix">₱</span>
+                  <input type="text" inputmode="numeric" id="i-target-profit" placeholder="e.g. 10" class="has-prefix" oninput="calcTargetPrice()">
+                </div>
+              </div>
+              <div>
+                <div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;font-family:var(--font-ui);">Required selling price</div>
+                <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 13px;display:flex;align-items:center;justify-content:space-between;">
+                  <span style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--accent);" id="target-price-out">—</span>
+                  <button id="btn-apply-target" title="Apply to selling price" style="display:none;padding:4px 10px;background:var(--accent);border:none;border-radius:6px;font-family:var(--font-ui);font-size:11px;font-weight:600;color:#fff;cursor:pointer;" onclick="applyTargetPrice()">Use this</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Selling at</div>
+        <div class="panel-price" id="p-price">$0.00</div>
+        <div class="panel-price-label" id="p-product">—</div>
+      </div>
+
+      <div class="bars">
+        <div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,0.65);margin-bottom:16px;font-family:var(--font-ui);">Cost breakdown per item</div>
+        <div class="bar-row"><span class="bar-label">COGS</span><div class="bar-track"><div class="bar-fill" id="bf-cogs" style="background:#378ADD"></div></div><span class="bar-amt" id="ba-cogs">$0</span></div>
+        <div class="bar-row"><span class="bar-label">Defect waste</span><div class="bar-track"><div class="bar-fill" id="bf-defect" style="background:#ff5252"></div></div><span class="bar-amt" id="ba-defect">$0</span></div>
+        <div class="bar-row"><span class="bar-label">Additional costs</span><div class="bar-track"><div class="bar-fill" id="bf-addl" style="background:#20b2aa"></div></div><span class="bar-amt" id="ba-addl">$0</span></div>
+        <div class="bar-row"><span class="bar-label">Packaging</span><div class="bar-track"><div class="bar-fill" id="bf-pack" style="background:#ffb84d"></div></div><span class="bar-amt" id="ba-pack">$0</span></div>
+        <div class="bar-row"><span class="bar-label">Labor</span><div class="bar-track"><div class="bar-fill" id="bf-lab" style="background:#ff8c5a"></div></div><span class="bar-amt" id="ba-lab">$0</span></div>
+        <div class="bar-row"><span class="bar-label">Ads</span><div class="bar-track"><div class="bar-fill" id="bf-ads" style="background:#e040fb"></div></div><span class="bar-amt" id="ba-ads">$0</span></div>
+        <div class="bar-row"><span class="bar-label">Platform fee</span><div class="bar-track"><div class="bar-fill" id="bf-plat" style="background:#888780"></div></div><span class="bar-amt" id="ba-plat">$0</span></div>
+        <div class="bar-row"><span class="bar-label">Affiliate</span><div class="bar-track"><div class="bar-fill" id="bf-aff" style="background:#d4537e"></div></div><span class="bar-amt" id="ba-aff">$0</span></div>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div class="breakdown">
+        <div class="breakdown-row"><span class="breakdown-name">Selling price</span><span class="breakdown-val" id="bd-price">$0</span></div>
+        <div class="breakdown-row"><span class="breakdown-name">− Platform fee</span><span class="breakdown-val" id="bd-plat" style="color:var(--red)">−$0</span></div>
+        <div class="breakdown-row"><span class="breakdown-name">− Affiliate commission</span><span class="breakdown-val" id="bd-aff" style="color:var(--red)">−$0</span></div>
+        <div class="breakdown-row"><span class="breakdown-name">− Tax</span><span class="breakdown-val" id="bd-tax" style="color:var(--red)">−$0</span></div>
+        <div class="breakdown-row" style="background:rgba(59,97,198,0.06);border-radius:7px;padding:9px 8px;margin:4px 0;border-bottom:none;">
+          <span class="breakdown-name" style="font-weight:600;color:var(--text);">💳 You receive</span>
+          <span class="breakdown-val" id="bd-payout" style="color:var(--accent);font-size:14px;font-weight:600;">$0</span>
+        </div>
+        <div class="breakdown-row"><span class="breakdown-name">− Total cost per unit</span><span class="breakdown-val" id="bd-cost" style="color:var(--red)">−$0</span></div>
+        <div class="breakdown-row total"><span class="breakdown-name">= Net profit</span><span class="breakdown-val" id="bd-profit">$0</span></div>
+      </div>
+
+      <div class="panel-divider"></div>
+
+      <div class="monthly">
+        <div class="monthly-item">
+          <div class="monthly-label">Monthly profit</div>
+          <div class="monthly-val" id="pm-profit">$0</div>
+        </div>
+        <div class="monthly-item">
+          <div class="monthly-label">Monthly revenue</div>
+          <div class="monthly-val" id="pm-revenue">$0</div>
+        </div>
+        <div class="monthly-item">
+          <div class="monthly-label">Break-even price</div>
+          <div class="monthly-val" id="pm-bep">$0</div>
+        </div>
+        <div class="monthly-item">
+          <div class="monthly-label">Monthly inventory cost</div>
+          <div class="monthly-val" id="pm-cogs">$0</div>
+        </div>
+        <div class="monthly-item" style="grid-column: span 2;">
+          <div class="monthly-label">Monthly fees & overhead</div>
+          <div class="monthly-val" id="pm-overhead">$0</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;font-family:var(--font-ui);" id="pm-overhead-sub"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFIT GOAL CALCULATOR -->
+  <div class="section" style="margin-top:24px;" id="sec-goal">
+    <div class="section-header" onclick="toggleSection('sec-goal')">
+      <div class="section-icon" style="background:rgba(26,184,122,0.12);">💰</div>
+      <div class="section-title">Profit Goal Calculator</div>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:20px;letter-spacing:-.01em;">Set a monthly profit target — see exactly how many units to sell or what price to charge.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:end;margin-bottom:24px;">
+        <div class="field" style="grid-column:span 2;">
+          <label class="field-label">I want to earn per month <span class="field-hint">your profit goal</span></label>
+          <div class="input-wrap">
+            <span class="input-prefix currency-prefix">₱</span>
+            <input type="text" inputmode="numeric" id="i-goal-profit" class="has-prefix" placeholder="e.g. 50,000" oninput="calcGoal()">
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;" id="goal-results">
+
+        <!-- Option A: Sell more units -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:20px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <div style="width:28px;height:28px;background:rgba(59,97,198,0.12);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;">📦</div>
+            <div>
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-family:var(--font-ui);">Option A</div>
+              <div style="font-size:12px;font-weight:600;color:var(--text);letter-spacing:-.01em;">Keep price, sell more</div>
+            </div>
+          </div>
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:6px;font-family:var(--font-ui);">Units to sell per month</div>
+          <div style="font-family:var(--font-mono);font-size:26px;font-weight:600;letter-spacing:-.03em;color:var(--accent);margin-bottom:4px;" id="goal-units-out">—</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:14px;min-height:18px;" id="goal-units-sub"></div>
+          <button id="btn-apply-goal-units" onclick="applyGoalUnits()" style="display:none;padding:7px 16px;background:var(--accent);border:none;border-radius:8px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:#fff;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='#2e50b0'" onmouseout="this.style.background='var(--accent)'">
+            Set as target units
+          </button>
+        </div>
+
+        <!-- Option B: Raise price -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:20px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <div style="width:28px;height:28px;background:rgba(26,184,122,0.12);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;">💸</div>
+            <div>
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);font-family:var(--font-ui);">Option B</div>
+              <div style="font-size:12px;font-weight:600;color:var(--text);letter-spacing:-.01em;">Keep volume, raise price</div>
+            </div>
+          </div>
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:6px;font-family:var(--font-ui);">Sell at</div>
+          <div style="font-family:var(--font-mono);font-size:26px;font-weight:600;letter-spacing:-.03em;color:var(--green);margin-bottom:4px;" id="goal-price-out">—</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:14px;min-height:18px;" id="goal-price-sub"></div>
+          <button id="btn-apply-goal-price" onclick="applyGoalPrice()" style="display:none;padding:7px 16px;background:var(--green);border:none;border-radius:8px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:#fff;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='#13a066'" onmouseout="this.style.background='var(--green)'">
+            Apply this price
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Summary bar -->
+      <div id="goal-summary" style="display:none;margin-top:16px;padding:14px 18px;background:rgba(59,97,198,0.07);border:1px solid rgba(59,97,198,0.15);border-radius:10px;font-size:13px;color:var(--text2);letter-spacing:-.01em;line-height:1.6;"></div>
+    </div>
+  </div>
+
+  <!-- SALE / VOUCHER SIMULATOR -->
+  <div class="section" style="margin-top:24px;" id="sec-voucher">
+    <div class="section-header" onclick="toggleSection('sec-voucher')">
+      <div class="section-icon" style="background:rgba(232,64,64,0.1);">🏷️</div>
+      <div class="section-title">Sale / Voucher Simulator</div>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:20px;letter-spacing:-.01em;">Simulate a sale or voucher discount — see the impact on your profit before you run it.</p>
+
+      <!-- Discount input row -->
+      <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:24px;">
+        <div class="field" style="flex:1;min-width:160px;">
+          <label class="field-label">Discount value</label>
+          <div class="input-wrap">
+            <span id="voucher-prefix" class="input-prefix" style="display:none;"></span>
+            <input type="number" id="i-voucher" min="0" step="1" placeholder="e.g. 10" class="has-suffix" oninput="calcVoucher()" style="padding-right:40px;">
+            <span id="voucher-suffix" class="input-suffix">%</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:0;border:1px solid var(--border2);border-radius:9px;overflow:hidden;flex-shrink:0;">
+          <button id="vtype-pct" onclick="setVoucherType('percent')"
+            style="padding:10px 18px;border:none;font-family:var(--font-ui);font-size:12.5px;font-weight:600;cursor:pointer;background:var(--accent);color:#fff;transition:all .15s;">
+            % Off
+          </button>
+          <button id="vtype-fixed" onclick="setVoucherType('fixed')"
+            style="padding:10px 18px;border:none;font-family:var(--font-ui);font-size:12.5px;font-weight:600;cursor:pointer;background:var(--surface2);color:var(--text2);transition:all .15s;">
+            <span class="currency-prefix">₱</span> Off
+          </button>
+        </div>
+        <div style="flex:1;min-width:160px;" id="voucher-common-wrap">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:8px;font-family:var(--font-ui);">Quick picks</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button onclick="setQuickDiscount(5)"  style="padding:5px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:100px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;">5%</button>
+            <button onclick="setQuickDiscount(10)" style="padding:5px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:100px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;">10%</button>
+            <button onclick="setQuickDiscount(15)" style="padding:5px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:100px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;">15%</button>
+            <button onclick="setQuickDiscount(20)" style="padding:5px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:100px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;">20%</button>
+            <button onclick="setQuickDiscount(25)" style="padding:5px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:100px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;">25%</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Result cards -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:8px;font-family:var(--font-ui);">Sale price</div>
+          <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--text);letter-spacing:-.03em;" id="v-price">—</div>
+          <div style="font-size:11.5px;color:var(--text3);margin-top:4px;" id="v-price-sub"></div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:8px;font-family:var(--font-ui);">You receive</div>
+          <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;color:var(--accent);letter-spacing:-.03em;" id="v-payout">—</div>
+          <div style="font-size:11.5px;color:var(--text3);margin-top:4px;" id="v-payout-sub"></div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:8px;font-family:var(--font-ui);">Profit / item</div>
+          <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;letter-spacing:-.03em;" id="v-profit">—</div>
+          <div style="font-size:11.5px;color:var(--text3);margin-top:4px;" id="v-profit-sub"></div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:8px;font-family:var(--font-ui);">Margin</div>
+          <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;letter-spacing:-.03em;" id="v-margin">—</div>
+          <div style="font-size:11.5px;color:var(--text3);margin-top:4px;" id="v-margin-sub"></div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:8px;font-family:var(--font-ui);">Monthly profit</div>
+          <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;letter-spacing:-.03em;" id="v-monthly">—</div>
+          <div style="font-size:11.5px;color:var(--text3);margin-top:4px;" id="v-monthly-sub"></div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:8px;font-family:var(--font-ui);">Profit lost</div>
+          <div style="font-family:var(--font-mono);font-size:20px;font-weight:600;letter-spacing:-.03em;" id="v-lost">—</div>
+          <div style="font-size:11.5px;color:var(--text3);margin-top:4px;" id="v-lost-sub"></div>
+        </div>
+      </div>
+
+      <!-- Status banner -->
+      <div id="v-banner" style="display:none;padding:13px 18px;border-radius:10px;font-size:13px;font-weight:500;letter-spacing:-.01em;line-height:1.6;"></div>
+    </div>
+  </div>
+
+  <!-- PRICE COMPARISON TABLE -->
+  <div class="section" style="margin-top:24px;" id="sec-pricetable">
+    <div class="section-header" onclick="toggleSection('sec-pricetable')">
+      <div class="section-icon" style="background:rgba(59,97,198,0.1);">📊</div>
+      <div class="section-title">Price Comparison Table</div>
+      <span class="section-chevron">▼</span>
+    </div>
+    <div class="section-body" style="padding:0;">
+      <div style="padding:16px 24px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border);">
+        <span style="font-size:12px;font-weight:500;color:var(--text2);font-family:var(--font-ui);">Compare prices:</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;" id="price-point-tags"></div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="position:relative;">
+            <span id="pt-prefix" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-family:var(--font-mono);font-size:12px;color:var(--text3);">₱</span>
+            <input type="number" id="pt-input" placeholder="e.g. 29.99" min="0" step="0.01"
+              style="width:120px;padding:7px 10px 7px 26px;font-family:var(--font-mono);font-size:13px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);outline:none;-moz-appearance:textfield;"
+              onfocus="this.style.borderColor='var(--accent)'"
+              onblur="this.style.borderColor=''">
+          </div>
+          <button id="pt-add-btn" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:var(--accent);border:none;border-radius:8px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:#fff;cursor:pointer;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add
+          </button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="price-table" style="width:100%;border-collapse:collapse;font-family:var(--font-ui);font-size:13px;">
+          <thead>
+            <tr style="background:var(--surface2);">
+              <th style="padding:11px 24px;text-align:left;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);border-bottom:1px solid var(--border);">Selling Price</th>
+              <th style="padding:11px 16px;text-align:right;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);border-bottom:1px solid var(--border);">You Receive</th>
+              <th style="padding:11px 16px;text-align:right;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);border-bottom:1px solid var(--border);">Profit/item</th>
+              <th style="padding:11px 16px;text-align:right;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);border-bottom:1px solid var(--border);">Margin</th>
+              <th style="padding:11px 16px;text-align:right;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);border-bottom:1px solid var(--border);">Monthly Profit</th>
+              <th style="padding:11px 16px;text-align:center;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);border-bottom:1px solid var(--border);">Status</th>
+              <th style="padding:11px 16px;text-align:center;border-bottom:1px solid var(--border);"></th>
+            </tr>
+          </thead>
+          <tbody id="price-table-body">
+            <tr><td colspan="7" style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">Add a price point above to compare</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div style="margin-bottom:16px;">
+      <span style="font-size:13px;font-weight:700;color:var(--accent);font-family:var(--font-ui);">Online Seller Pricing Calculator</span>
+      <span style="color:var(--text3);margin:0 8px;">·</span>
+      <span style="color:var(--text3);">Free for all online sellers</span>
+    </div>
+    <div style="margin-bottom:20px;">
+      <button id="btn-share" style="display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:var(--navy);border:none;border-radius:100px;font-family:var(--font-ui);font-size:13px;font-weight:600;color:#fff;cursor:pointer;transition:all .2s;" onmouseover="this.style.background='var(--accent)'" onmouseout="this.style.background='var(--navy)'">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Share this free tool
+      </button>
+    </div>
+    <div style="font-size:11px;color:var(--text3);">
+      Calculate product costs, platform fees, profit & break-even — free for every online seller.
+    </div>
+  </footer>
+</div>
+
+<script>
+function g(id){ return document.getElementById(id); }
+function p(id){ return (parseFloat(g(id).value) || 0) / 100; }
+
+// ── CURRENCY ──────────────────────────────────────────────────────
+let currSymbol = '₱';
+
+function setCurrency(sym){
+  currSymbol = sym;
+  document.querySelectorAll('.currency-prefix').forEach(el => el.textContent = sym);
+  g('pt-prefix').textContent = sym;
+  calc();
+}
+
+function fmt(v){
+  return currSymbol + Math.abs(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function defectHint(v){
+  return v === 0 ? 'No defects' : v <= 5 ? 'Excellent quality' : v <= 15 ? 'Normal — about 1 in ' + Math.round(100/v) + ' units' : v <= 30 ? 'High — check your supplier' : 'Very high!';
+}
+
+// ── COMMA-FORMATTED INPUTS ────────────────────────────────────────
+const COMMA_INPUTS = ['i-cogs','i-adspend','i-packaging','i-labor','i-price','i-units','i-target-profit','i-goal-profit'];
+
+function n(id){
+  const el = document.getElementById(id);
+  if(!el) return 0;
+  return parseFloat(el.value.replace(/,/g,'')) || 0;
+}
+
+function formatComma(val){
+  if(!val && val !== 0) return '';
+  const parts = parseFloat(val).toString().split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return parts.join('.');
+}
+
+function attachCommaInput(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.addEventListener('input', function(){
+    const raw = this.value.replace(/,/g,'');
+    if(raw === '' || raw === '-') return;
+    if(raw.endsWith('.') || raw.endsWith('.0') || raw.endsWith('.00') || raw.endsWith('.000')) return;
+    const num = parseFloat(raw);
+    if(isNaN(num)) return;
+    const pos = this.selectionStart;
+    const oldLen = this.value.length;
+    this.value = formatComma(raw);
+    const newLen = this.value.length;
+    this.setSelectionRange(pos + (newLen - oldLen), pos + (newLen - oldLen));
+  });
+}
+
+COMMA_INPUTS.forEach(attachCommaInput);
+
+function setFmt(id, val){
+  const el = g(id);
+  if(!el) return;
+  if(val === '' || val === null || val === undefined){ el.value = ''; return; }
+  el.value = COMMA_INPUTS.includes(id) ? formatComma(val) : val;
+}
+
+// ── ADDITIONAL COSTS ──────────────────────────────────────────────
+let addlId = 0;
+const additionals = {};
+
+function addAdditional(name='', cost=''){
+  const id = ++addlId;
+  additionals[id] = { name, cost: parseFloat(cost) || 0 };
+  const row = document.createElement('div');
+  row.id = 'addl-row-' + id;
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;';
+  row.innerHTML = `
+    <input type="text" placeholder="e.g. Shipping label, Insert card" value="${name}"
+      style="flex:1;font-family:var(--font-ui);font-size:13px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);outline:none;"
+      oninput="additionals[${id}].name=this.value"
+      onfocus="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 0 3px rgba(59,97,198,0.1)'"
+      onblur="this.style.borderColor='';this.style.boxShadow=''">
+    <div style="position:relative;width:110px;flex-shrink:0;">
+      <span class="addl-prefix" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);font-family:var(--font-mono);font-size:13px;color:var(--text3);pointer-events:none;">${currSymbol}</span>
+      <input type="text" inputmode="numeric" placeholder="0" value="${cost ? formatComma(cost) : ''}"
+        style="width:100%;padding:9px 10px 9px 26px;font-family:var(--font-mono);font-size:13px;font-weight:500;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);outline:none;"
+        oninput="
+          const raw=this.value.replace(/,/g,'');
+          if(raw===''||raw==='.'||raw.endsWith('.')||raw.endsWith('.0')||raw.endsWith('.00')){additionals[${id}].cost=parseFloat(raw)||0;updateAddlTotal();calc();return;}
+          if(isNaN(parseFloat(raw))) return;
+          const pos=this.selectionStart,oldLen=this.value.length;
+          this.value=formatComma(raw);
+          const newLen=this.value.length;
+          this.setSelectionRange(pos+(newLen-oldLen),pos+(newLen-oldLen));
+          additionals[${id}].cost=parseFloat(raw)||0;updateAddlTotal();calc()"
+        onfocus="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 0 3px rgba(59,97,198,0.1)'"
+        onblur="this.style.borderColor='';this.style.boxShadow=''">
+    </div>
+    <button onclick="removeAdditional(${id})" title="Remove"
+      style="width:30px;height:30px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(232,64,64,0.08);border:1px solid rgba(232,64,64,0.2);border-radius:7px;cursor:pointer;color:var(--red);transition:all .15s;"
+      onmouseover="this.style.background='rgba(232,64,64,0.16)'" onmouseout="this.style.background='rgba(232,64,64,0.08)'">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>`;
+  document.getElementById('addl-list').appendChild(row);
+  updateAddlTotal();
+}
+
+function removeAdditional(id){
+  delete additionals[id];
+  const row = document.getElementById('addl-row-' + id);
+  if(row) row.remove();
+  updateAddlTotal();
+  calc();
+}
+
+function updateAddlTotal(){
+  const total = Object.values(additionals).reduce((s,m) => s + (m.cost || 0), 0);
+  g('addl-total').textContent = currSymbol + total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+}
+
+function getAddlTotal(){
+  return Object.values(additionals).reduce((s,m) => s + (m.cost || 0), 0);
+}
+
+function resetAdditionals(){
+  Object.keys(additionals).forEach(id => {
+    delete additionals[id];
+    const row = document.getElementById('addl-row-' + id);
+    if(row) row.remove();
+  });
+  updateAddlTotal();
+}
+
+// ── CALC ──────────────────────────────────────────────────────────
+function calc(){
+  const cogs       = n('i-cogs');
+  const defectRate = p('i-defect');
+  const platform   = p('i-platform');
+  const affiliate  = p('i-affiliate');
+  const tax        = p('i-tax');
+  const packaging  = n('i-packaging');
+  const labor      = n('i-labor');
+  const adSpend    = n('i-adspend');
+  const price      = n('i-price');
+  const units      = n('i-units');
+  const addlTotal  = getAddlTotal();
+
+  const adPerUnit    = units > 0 ? adSpend / units : 0;
+  const wastePerItem = cogs * defectRate / Math.max(1 - defectRate, 0.01);
+  const prodCost     = cogs + wastePerItem + packaging + labor + adPerUnit + addlTotal;
+
+  // Update ad hint
+  const adHint = g('ad-hint');
+  if(adSpend > 0 && units > 0)
+    adHint.textContent = `= ${fmt(adPerUnit)} per unit (${fmt(adSpend)} ÷ ${units} units)`;
+  else
+    adHint.textContent = 'Facebook, TikTok, Shopee Ads, etc.';
+
+  const platFee  = price * platform;
+  const affFee   = price * affiliate;
+  const taxFee   = price * tax;
+  const netRev   = price - platFee - affFee - taxFee;
+  const profit   = netRev - prodCost;
+  const margin   = price > 0 ? profit / price : 0;
+  const bep      = prodCost / Math.max(1 - platform - affiliate - tax, 0.01);
+
+  const profitRounded  = Math.round(profit * 100) / 100;
+  const monthlyProfit  = profitRounded * units;
+  const monthlyRev     = price * units;
+  const monthlyCogs    = (cogs + wastePerItem) * units;
+  const monthlyOverhd  = (packaging + labor + adPerUnit + platFee + affFee + taxFee) * units;
+
+  // KPIs
+  setKpi('k-cost',    fmt(prodCost));
+  setKpi('k-bep',     fmt(bep));
+  setKpi('k-profit',  fmt(profit));
+  setKpi('k-margin',  (margin * 100).toFixed(1) + '%');
+  setKpi('k-monthly', fmt(monthlyProfit));
+  setKpi('k-revenue', fmt(monthlyRev));
+  setKpi('k-ads',     fmt(adSpend));
+  const adsCard = g('k-ads-card');
+  const adsPct  = monthlyRev > 0 ? (adSpend / monthlyRev * 100).toFixed(1) : 0;
+  g('k-ads-sub').textContent = adSpend > 0 && monthlyRev > 0 ? `${adsPct}% of monthly revenue` : 'monthly ad budget';
+  adsCard.className = adSpend <= 0 ? 'kpi blue' : adsPct <= 10 ? 'kpi green' : adsPct <= 20 ? 'kpi yellow' : 'kpi red';
+
+  const suggested    = prodCost * 3;
+  const suggestedCard = g('k-suggested-card');
+  const suggestedSub  = g('k-suggested-sub');
+  setKpi('k-suggested', fmt(suggested));
+  if(price <= 0 || prodCost <= 0){
+    suggestedCard.className = 'kpi blue';
+    suggestedSub.textContent = '3× your cost per unit';
+  } else if(price >= suggested){
+    suggestedCard.className = 'kpi green';
+    suggestedSub.textContent = `You're ${fmt(price - suggested)} above suggested`;
+  } else {
+    suggestedCard.className = 'kpi yellow';
+    suggestedSub.textContent = `Your price is ${fmt(suggested - price)} below suggested`;
+  }
+
+  g('k-profit-card').className  = 'kpi ' + (profit > 0 ? 'green' : profit < 0 ? 'red' : 'yellow');
+  g('k-margin-card').className  = 'kpi ' + (margin >= 0.2 ? 'green' : margin < 0 ? 'red' : 'yellow');
+  g('k-monthly-card').className = 'kpi ' + (monthlyProfit > 0 ? 'green' : monthlyProfit < 0 ? 'red' : 'yellow');
+
+  // Panel
+  g('p-price').textContent   = fmt(price);
+  g('p-product').textContent = g('i-name').value || '—';
+
+  // Breakdown
+  g('bd-price').textContent  = fmt(price);
+  g('bd-plat').textContent   = '−' + fmt(platFee);
+  g('bd-aff').textContent    = '−' + fmt(affFee);
+  g('bd-tax').textContent    = '−' + fmt(taxFee);
+  g('bd-payout').textContent = fmt(netRev);
+  g('bd-cost').textContent   = '−' + fmt(prodCost);
+  g('bd-profit').textContent = (profit >= 0 ? '' : '−') + fmt(profit);
+  g('bd-profit').style.color = profit >= 0 ? 'var(--green)' : 'var(--red)';
+
+  // Monthly panel
+  g('pm-profit').textContent  = fmt(monthlyProfit);
+  g('pm-profit').style.color  = monthlyProfit >= 0 ? 'var(--green)' : 'var(--red)';
+  g('pm-revenue').textContent = fmt(monthlyRev);
+  g('pm-bep').textContent     = fmt(bep);
+  g('pm-cogs').textContent    = fmt(monthlyCogs);
+  g('pm-overhead').textContent = fmt(monthlyOverhd);
+  g('pm-overhead-sub').textContent = units > 0 ? `packaging + labor + fees × ${units} units` : '';
+
+  // Bars
+  const comps = [
+    { id:'cogs',   val: cogs },
+    { id:'defect', val: wastePerItem },
+    { id:'addl',   val: addlTotal },
+    { id:'pack',   val: packaging },
+    { id:'lab',    val: labor },
+    { id:'ads',    val: adPerUnit },
+    { id:'plat',   val: platFee },
+    { id:'aff',    val: affFee },
+  ];
+  const maxV = Math.max(...comps.map(c => c.val), 1);
+  comps.forEach(c => {
+    g('bf-' + c.id).style.width = Math.max(0, (c.val / maxV) * 100).toFixed(1) + '%';
+    g('ba-' + c.id).textContent = fmt(c.val);
+  });
+
+  // Warning
+  const warn = g('warnBanner');
+  if(price < bep && price > 0){
+    warn.classList.add('show');
+    g('warnText').textContent = `Selling at ${fmt(price)} but break-even is ${fmt(bep)}. You're losing ${fmt(bep - price)} per unit.`;
+  } else {
+    warn.classList.remove('show');
+  }
+
+  // Also update addl prefix symbols
+  document.querySelectorAll('.addl-prefix').forEach(el => el.textContent = currSymbol);
+  updateAddlTotal();
+
+  if(typeof renderPriceTable === 'function') renderPriceTable();
+  calcVoucher();
+  calcGoal();
+}
+
+function setKpi(id, val){
+  const el = g(id);
+  if(el.textContent !== val){
+    el.classList.remove('flash');
+    void el.offsetWidth;
+    el.classList.add('flash');
+    el.textContent = val;
+  }
+}
+
+function toggleSection(id){
+  g(id).classList.toggle('collapsed');
+}
+
+// ── USER SETUP & PRESETS ──────────────────────────────────────────
+let userSetup = { cogs:'', adspend:'', defect:0, platform:0, affiliate:0, tax:0, packaging:'', labor:'', price:'', units:'', name:'', currency:'₱' };
+
+const PRESETS = {
+  shopee:    { platform:25, affiliate:0,  tax:0 },
+  lazada:    { platform:22, affiliate:5,  tax:0 },
+  tiktok:    { platform:8,  affiliate:10, tax:0 },
+  wholesale: { platform:0,  affiliate:0,  tax:0 },
+};
+
+function captureUserSetup(){
+  return {
+    cogs:       g('i-cogs').value.replace(/,/g,''),
+    adspend:    g('i-adspend').value.replace(/,/g,''),
+    defect:     parseInt(g('i-defect').value) || 0,
+    platform:   parseFloat(g('i-platform').value) || 0,
+    affiliate:  parseFloat(g('i-affiliate').value) || 0,
+    tax:        parseFloat(g('i-tax').value) || 0,
+    packaging:  g('i-packaging').value.replace(/,/g,''),
+    labor:      g('i-labor').value.replace(/,/g,''),
+    price:      g('i-price').value.replace(/,/g,''),
+    units:      g('i-units').value.replace(/,/g,''),
+    name:       g('i-name').value,
+    currency:   currSymbol,
+  };
+}
+
+function applyFields(setup){
+  setFmt('i-cogs',       setup.cogs);
+  setFmt('i-adspend',    setup.adspend);
+  g('i-defect').value    = setup.defect || 0;
+  g('i-platform').value  = setup.platform || 0;
+  g('i-affiliate').value = setup.affiliate || 0;
+  g('i-tax').value       = setup.tax || 0;
+  setFmt('i-packaging',  setup.packaging);
+  setFmt('i-labor',      setup.labor);
+  setFmt('i-price',      setup.price);
+  setFmt('i-units',      setup.units);
+  if(setup.name !== undefined){ g('i-name').value = setup.name; g('p-product').textContent = setup.name || '—'; }
+  if(setup.currency){
+    currSymbol = setup.currency;
+    g('currency-select').value = setup.currency;
+    document.querySelectorAll('.currency-prefix').forEach(el => el.textContent = setup.currency);
+    g('pt-prefix').textContent = setup.currency;
+  }
+  calc();
+}
+
+function applyPreset(key, btn){
+  const activeBtn = document.querySelector('.preset-btn.active');
+  const wasOnCurrent = activeBtn && activeBtn.textContent.trim() === 'Your current setup';
+  if(wasOnCurrent) userSetup = captureUserSetup();
+
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.custom-preset-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  if(key === 'current'){
+    applyFields(userSetup);
+    return;
+  }
+
+  const preset = PRESETS[key];
+  g('i-platform').value   = preset.platform;
+  g('i-affiliate').value  = preset.affiliate;
+  g('i-tax').value        = preset.tax;
+  calc();
+}
+
+function resetDefaults(){
+  userSetup = { cogs:'', defect:0, platform:0, affiliate:0, tax:0, packaging:'', labor:'', price:'', units:'', name:'', currency: currSymbol };
+  activeProduct = null;
+  resetAdditionals();
+  ['i-cogs','i-adspend','i-packaging','i-labor','i-price','i-units','i-target-profit'].forEach(id => g(id).value = '');
+  g('i-defect').value    = 0;
+  g('i-platform').value  = 0;
+  g('i-affiliate').value = 0;
+  g('i-tax').value       = 0;
+  g('i-name').value = '';
+  g('p-product').textContent = '—';
+  g('p-price').textContent   = fmt(0);
+  g('target-price-out').textContent = '—';
+  g('btn-apply-target').style.display = 'none';
+  ['k-cost','k-bep','k-profit','k-monthly','k-revenue','k-suggested'].forEach(id => g(id).textContent = fmt(0));
+  g('k-margin').textContent = '0%';
+  g('k-profit-card').className = g('k-margin-card').className = g('k-monthly-card').className = g('k-suggested-card').className = 'kpi blue';
+  g('k-suggested-sub').textContent = '3× your cost per unit';
+  ['cogs','defect','addl','pack','lab','ads','plat','aff'].forEach(id => { g('bf-'+id).style.width='0%'; g('ba-'+id).textContent=fmt(0); });
+  g('bd-price').textContent = fmt(0); g('bd-plat').textContent = '−'+fmt(0); g('bd-aff').textContent = '−'+fmt(0);
+  g('bd-tax').textContent = '−'+fmt(0); g('bd-payout').textContent = fmt(0);
+  g('bd-cost').textContent  = '−'+fmt(0); g('bd-profit').textContent = fmt(0);
+  g('pm-profit').textContent = fmt(0); g('pm-revenue').textContent = fmt(0); g('pm-bep').textContent = fmt(0);
+  g('pm-cogs').textContent  = fmt(0); g('pm-overhead').textContent = fmt(0); g('pm-overhead-sub').textContent = '';
+  g('warnBanner').classList.remove('show');
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  renderSavedBar();
+}
+
+// ── TARGET PROFIT ─────────────────────────────────────────────────
+function calcTargetPrice(){
+  const raw = g('i-target-profit').value.replace(/,/g,'');
+  const targetProfit = parseFloat(raw);
+  const out = g('target-price-out');
+  const btn = g('btn-apply-target');
+
+  if(!raw || isNaN(targetProfit)){
+    out.textContent = '—';
+    btn.style.display = 'none';
+    return;
+  }
+
+  const cogs       = n('i-cogs');
+  const defectRate = p('i-defect');
+  const platform   = p('i-platform');
+  const affiliate  = p('i-affiliate');
+  const tax        = p('i-tax');
+  const packaging  = n('i-packaging');
+  const labor      = n('i-labor');
+  const adPerUnit  = n('i-units') > 0 ? n('i-adspend') / n('i-units') : 0;
+
+  const wastePerItem = cogs * defectRate / Math.max(1 - defectRate, 0.01);
+  const prodCost     = cogs + wastePerItem + packaging + labor + adPerUnit + getAddlTotal();
+  const denominator  = Math.max(1 - platform - affiliate - tax, 0.01);
+  const requiredPrice = (prodCost + targetProfit) / denominator;
+
+  out.textContent = fmt(requiredPrice);
+  out.dataset.price = requiredPrice.toFixed(2);
+  btn.style.display = 'inline-block';
+}
+
+function applyTargetPrice(){
+  const price = parseFloat(g('target-price-out').dataset.price);
+  if(!price) return;
+  setFmt('i-price', price.toFixed(2));
+  calc();
+  showToast('Selling price updated!');
+}
+
+function onPriceInput(){
+  g('i-target-profit').value = '';
+  g('target-price-out').textContent = '—';
+  g('btn-apply-target').style.display = 'none';
+  calc();
+}
+
+// ── EXPORT / IMPORT ───────────────────────────────────────────────
+function exportData(){
+  const productName = g('i-name').value || 'Untitled Product';
+  const fileName    = (g('i-name').value || 'seller-pricing') + '.xlsx';
+
+  const addlRows = Object.values(additionals).map(m => [m.name || '—', m.cost]);
+
+  const inputsData = [
+    ['Online Seller Pricing Calculator', ''],
+    ['Product', productName],
+    ['', ''],
+    ['INPUTS', ''],
+    ['Currency',                      currSymbol],
+    ['Cost per Unit (COGS)',          n('i-cogs')],
+    ['Monthly Ad Spend',             n('i-adspend')],
+    ['Defect / Return Rate (%)',      n('i-defect')],
+    ['Platform Fee (%)',              n('i-platform')],
+    ['Affiliate Commission (%)',      n('i-affiliate')],
+    ['Tax Rate (%)',                  n('i-tax')],
+    ['Packaging per Item',            n('i-packaging')],
+    ['Labor per Item',                n('i-labor')],
+    ['Selling Price',                 n('i-price')],
+    ['Monthly Units Target',          n('i-units')],
+    ['', ''],
+    ['ADDITIONAL COSTS', ''],
+    ['Name', 'Cost'],
+    ...addlRows,
+    ['', ''],
+    ['RESULTS', ''],
+    ['Cost per Unit',                 g('k-cost').textContent],
+    ['Break-even Price',              g('k-bep').textContent],
+    ['Suggested Price 3×',           g('k-suggested').textContent],
+    ['You Receive',                   g('bd-payout').textContent],
+    ['Profit per Item',              g('k-profit').textContent],
+    ['Profit Margin',                g('k-margin').textContent],
+    ['Monthly Gross Profit',         g('pm-profit').textContent],
+    ['Monthly Revenue',              g('pm-revenue').textContent],
+    ['Monthly Inventory Cost',       g('pm-cogs').textContent],
+    ['Monthly Overhead & Fees',      g('pm-overhead').textContent],
+  ];
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(inputsData);
+  ws['!cols'] = [{wch:32},{wch:22}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Pricing');
+
+  if(pricePoints.length > 0){
+    const headers = ['Selling Price','You Receive','Profit/Item','Margin','Monthly Profit','Status'];
+    const ptRows = pricePoints.map(v => {
+      const d = calcRowData(v);
+      const status = v < d.bep ? 'Loss' : v < d.prodCost * 2 ? 'Low' : v >= d.prodCost * 3 ? 'Great' : 'OK';
+      return [v, +d.netRev.toFixed(2), +d.profit.toFixed(2), (d.margin * 100).toFixed(1)+'%', +d.monthly.toFixed(2), status];
+    });
+    const ws2 = XLSX.utils.aoa_to_sheet([headers, ...ptRows]);
+    ws2['!cols'] = [{wch:14},{wch:14},{wch:14},{wch:10},{wch:16},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Price Comparison');
+  }
+
+  XLSX.writeFile(wb, fileName);
+}
+
+function importData(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const wb   = XLSX.read(e.target.result, { type:'array' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+
+      const map = {};
+      rows.forEach(row => { if(row[0] && row[1] !== '') map[String(row[0]).trim()] = row[1]; });
+
+      const set      = (id, key) => { const v = map[key]; if(v !== undefined && v !== '') setFmt(id, v); };
+      const setPlain = (id, key) => { const v = map[key]; if(v !== undefined && v !== '') g(id).value = v; };
+
+      if(map['Product']){ g('i-name').value = map['Product']; g('p-product').textContent = map['Product']; }
+      if(map['Currency']){ setCurrency(map['Currency']); g('currency-select').value = map['Currency']; }
+
+      set('i-cogs',       'Cost per Unit (COGS)');
+      set('i-adspend',    'Monthly Ad Spend');
+      setPlain('i-defect',    'Defect / Return Rate (%)');
+      setPlain('i-platform',  'Platform Fee (%)');
+      setPlain('i-affiliate', 'Affiliate Commission (%)');
+      setPlain('i-tax',       'Tax Rate (%)');
+      set('i-packaging',  'Packaging per Item');
+      set('i-labor',      'Labor per Item');
+      set('i-price',      'Selling Price');
+      set('i-units',      'Monthly Units Target');
+
+      // Additional costs
+      resetAdditionals();
+      let inAddl = false;
+      rows.forEach(row => {
+        if(String(row[0]).trim() === 'Name' && String(row[1]).trim() === 'Cost'){ inAddl = true; return; }
+        if(inAddl){
+          if(!row[0] && !row[1]){ inAddl = false; return; }
+          if(row[0] && row[0] !== 'RESULTS') addAdditional(row[0], row[1]);
+        }
+      });
+
+      calc();
+      showToast('Import successful!');
+    } catch(err){
+      showToast('Import failed — check file format.');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+document.getElementById('import-file-input').addEventListener('change', function(){
+  importData(this.files[0]);
+  this.value = '';
+});
+document.getElementById('btn-add-cost').addEventListener('click', () => addAdditional());
+
+// ── SHARE ─────────────────────────────────────────────────────────
+document.getElementById('btn-share').addEventListener('click', async function(){
+  const url  = window.location.href;
+  const text = '💰 Free Online Seller Pricing Calculator — covers platform fees, affiliate commissions, break-even & more. Stop guessing your prices!';
+  if(navigator.share){
+    try { await navigator.share({ title: 'Seller Pricing Calculator', text, url }); } catch(e){}
+  } else {
+    navigator.clipboard.writeText(url).then(() => showToast('Link copied to clipboard!'));
+  }
+});
+
+// ── MOBILE LAYOUT ─────────────────────────────────────────────────
+function fixMobileButtons(){
+  const bar = document.getElementById('header-actions-bar');
+  const header = document.querySelector('header');
+  if(!bar || !header) return;
+  if(window.innerWidth <= 640){
+    header.style.flexDirection = 'column';
+    header.style.gap = '12px';
+    bar.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;padding-top:0;';
+    bar.querySelectorAll('.action-btn').forEach(b => {
+      b.style.cssText = 'justify-content:center;width:100%;min-width:0;font-size:13px;padding:10px 8px;';
+    });
+  } else {
+    header.style.flexDirection = '';
+    header.style.gap = '';
+    bar.style.cssText = '';
+    bar.querySelectorAll('.action-btn').forEach(b => { b.style.cssText = ''; });
+  }
+}
+window.addEventListener('resize', fixMobileButtons);
+fixMobileButtons();
+
+// ── PRICE COMPARISON TABLE ─────────────────────────────────────────
+const pricePoints = [];
+
+function addPricePoint(){
+  const input = g('pt-input');
+  const val = parseFloat(input.value);
+  if(!val || val <= 0) return;
+  if(pricePoints.includes(val)){ input.value = ''; return; }
+  pricePoints.push(val);
+  pricePoints.sort((a,b) => a - b);
+  input.value = '';
+  renderPriceTags();
+  renderPriceTable();
+}
+
+function removePricePoint(val){
+  const idx = pricePoints.indexOf(val);
+  if(idx > -1) pricePoints.splice(idx, 1);
+  renderPriceTags();
+  renderPriceTable();
+}
+
+function renderPriceTags(){
+  const wrap = g('price-point-tags');
+  wrap.innerHTML = pricePoints.map(v => `
+    <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(59,97,198,0.1);border:1px solid rgba(59,97,198,0.2);border-radius:100px;font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--accent);">
+      ${currSymbol}${v}
+      <span onclick="removePricePoint(${v})" style="cursor:pointer;color:var(--text3);font-size:14px;line-height:1;" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</span>
+    </span>`).join('');
+}
+
+function calcRowData(price){
+  const cogs       = n('i-cogs');
+  const defectRate = p('i-defect');
+  const platform   = p('i-platform');
+  const affiliate  = p('i-affiliate');
+  const tax        = p('i-tax');
+  const packaging  = n('i-packaging');
+  const labor      = n('i-labor');
+  const units      = n('i-units');
+  const adPerUnit  = units > 0 ? n('i-adspend') / units : 0;
+
+  const wastePerItem = cogs * defectRate / Math.max(1 - defectRate, 0.01);
+  const prodCost     = cogs + wastePerItem + packaging + labor + adPerUnit + getAddlTotal();
+  const bep          = prodCost / Math.max(1 - platform - affiliate - tax, 0.01);
+
+  const platFee  = price * platform;
+  const affFee   = price * affiliate;
+  const taxFee   = price * tax;
+  const netRev   = price - platFee - affFee - taxFee;
+  const profit   = netRev - prodCost;
+  const margin   = price > 0 ? profit / price : 0;
+  const monthly  = profit * units;
+
+  return { price, netRev, profit, margin, monthly, bep, prodCost };
+}
+
+function renderPriceTable(){
+  const tbody = g('price-table-body');
+  if(pricePoints.length === 0){
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">Add a price point above to compare</td></tr>';
+    return;
+  }
+  tbody.innerHTML = pricePoints.map((v, i) => {
+    const d = calcRowData(v);
+    const isCurrentPrice = Math.abs(v - n('i-price')) < 0.01;
+    const rowBg      = isCurrentPrice ? 'rgba(59,97,198,0.05)' : (i % 2 === 0 ? '#fff' : 'var(--surface2)');
+    const profitColor = d.profit > 0 ? 'var(--green)' : d.profit < 0 ? 'var(--red)' : 'var(--text3)';
+    const marginColor = d.margin >= 0.2 ? 'var(--green)' : d.margin < 0 ? 'var(--red)' : 'var(--yellow)';
+
+    let status, statusBg, statusColor;
+    if(v < d.bep){
+      status = '🔴 Loss'; statusBg = 'rgba(232,64,64,0.08)'; statusColor = 'var(--red)';
+    } else if(v < d.prodCost * 2){
+      status = '🟡 Low'; statusBg = 'rgba(245,166,35,0.1)'; statusColor = 'var(--yellow)';
+    } else if(v >= d.prodCost * 3){
+      status = '🟢 Great'; statusBg = 'rgba(26,184,122,0.1)'; statusColor = 'var(--green)';
+    } else {
+      status = '🔵 OK'; statusBg = 'rgba(59,97,198,0.08)'; statusColor = 'var(--accent)';
+    }
+
+    return `<tr style="background:${rowBg};border-bottom:1px solid var(--border);">
+      <td style="padding:12px 24px;">
+        <span style="font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--text);">${currSymbol}${v.toFixed(2)}</span>
+        ${isCurrentPrice ? '<span style="margin-left:6px;font-size:10px;font-weight:600;color:var(--accent);background:rgba(59,97,198,0.1);padding:2px 7px;border-radius:100px;font-family:var(--font-ui);">current</span>' : ''}
+      </td>
+      <td style="padding:12px 16px;text-align:right;font-family:var(--font-mono);font-size:13px;font-weight:500;color:var(--accent);">${fmt(d.netRev)}</td>
+      <td style="padding:12px 16px;text-align:right;font-family:var(--font-mono);font-size:13px;font-weight:600;color:${profitColor};">${d.profit >= 0 ? '' : '−'}${fmt(d.profit)}</td>
+      <td style="padding:12px 16px;text-align:right;font-family:var(--font-mono);font-size:13px;font-weight:500;color:${marginColor};">${(d.margin * 100).toFixed(1)}%</td>
+      <td style="padding:12px 16px;text-align:right;font-family:var(--font-mono);font-size:13px;font-weight:500;color:${profitColor};">${fmt(d.monthly)}</td>
+      <td style="padding:12px 16px;text-align:center;">
+        <span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:100px;background:${statusBg};color:${statusColor};font-family:var(--font-ui);">${status}</span>
+      </td>
+      <td style="padding:12px 16px;text-align:center;">
+        <span onclick="removePricePoint(${v})" style="cursor:pointer;font-size:16px;color:var(--text3);line-height:1;" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</span>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('pt-add-btn').addEventListener('click', addPricePoint);
+document.getElementById('pt-input').addEventListener('keydown', e => { if(e.key === 'Enter') addPricePoint(); });
+
+// ── CUSTOM PRESETS ────────────────────────────────────────────────
+const LS_CUSTOM_PRESETS = 'seller_custom_presets';
+let editingCustomPresetId = null;
+
+function getCustomPresets(){ try { return JSON.parse(localStorage.getItem(LS_CUSTOM_PRESETS)) || []; } catch(e){ return []; } }
+function setCustomPresets(arr){ localStorage.setItem(LS_CUSTOM_PRESETS, JSON.stringify(arr)); }
+
+function openCustomPresetModal(id=null){
+  editingCustomPresetId = id;
+  const presets = getCustomPresets();
+  const preset  = id !== null ? presets.find(x => x.id === id) : null;
+  g('cpm-title').textContent       = preset ? 'Update preset' : 'Add preset';
+  g('cpm-confirm-btn').textContent = preset ? 'Update' : 'Save preset';
+  g('cpm-name').value              = preset ? preset.name       : '';
+  g('cpm-platform').value          = preset ? preset.platform   : '';
+  g('cpm-affiliate').value         = preset ? preset.affiliate  : '';
+  g('cpm-tax').value               = preset ? preset.tax        : '';
+  g('cpm-price').value             = preset ? preset.price      : '';
+  g('custom-preset-modal').style.display = 'flex';
+  setTimeout(() => g('cpm-name').focus(), 50);
+}
+
+function closeCustomPresetModal(){
+  g('custom-preset-modal').style.display = 'none';
+  editingCustomPresetId = null;
+}
+
+function confirmCustomPreset(){
+  const name = g('cpm-name').value.trim();
+  if(!name) return;
+  const presets = getCustomPresets();
+  const entry = {
+    id:         editingCustomPresetId !== null ? editingCustomPresetId : Date.now(),
+    name,
+    platform:   parseFloat(g('cpm-platform').value)  || 0,
+    affiliate:  parseFloat(g('cpm-affiliate').value)  || 0,
+    tax:        parseFloat(g('cpm-tax').value)        || 0,
+    price:      parseFloat(g('cpm-price').value)      || 0,
+  };
+  if(editingCustomPresetId !== null){
+    const idx = presets.findIndex(x => x.id === editingCustomPresetId);
+    if(idx > -1) presets[idx] = entry;
+  } else {
+    presets.push(entry);
+  }
+  setCustomPresets(presets);
+  closeCustomPresetModal();
+  renderCustomPresetChips();
+  showToast(`"${name}" ${editingCustomPresetId !== null ? 'updated' : 'saved'}!`);
+}
+
+function applyCustomPreset(id, btnEl){
+  const presets = getCustomPresets();
+  const preset  = presets.find(x => x.id === id);
+  if(!preset) return;
+  const activeBtn = document.querySelector('.preset-btn.active');
+  const wasOnCurrent = activeBtn && activeBtn.textContent.trim() === 'Your current setup';
+  if(wasOnCurrent) userSetup = captureUserSetup();
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.custom-preset-btn').forEach(b => b.classList.remove('active'));
+  btnEl.classList.add('active');
+  g('i-platform').value   = preset.platform;
+  g('i-affiliate').value  = preset.affiliate;
+  g('i-tax').value        = preset.tax;
+  if(preset.price) setFmt('i-price', preset.price);
+  calc();
+}
+
+function deleteCustomPreset(id){
+  const presets = getCustomPresets().filter(x => x.id !== id);
+  setCustomPresets(presets);
+  renderCustomPresetChips();
+}
+
+function renderCustomPresetChips(){
+  const presets = getCustomPresets();
+  const wrap    = g('custom-preset-chips');
+  wrap.innerHTML = presets.map(preset => `
+    <div style="display:inline-flex;align-items:center;background:var(--surface2);border:1px solid var(--border2);border-radius:100px;overflow:hidden;">
+      <button class="custom-preset-btn" onclick="applyCustomPreset(${preset.id},this)"
+        style="padding:7px 14px;background:transparent;border:none;font-family:var(--font-ui);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;letter-spacing:-.01em;transition:color .15s;"
+        onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text2)'">${preset.name}</button>
+      <button onclick="openCustomPresetModal(${preset.id})" title="Edit"
+        style="padding:5px 7px;background:transparent;border:none;border-left:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:12px;line-height:1;"
+        onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">✎</button>
+      <button onclick="deleteCustomPreset(${preset.id})" title="Delete"
+        style="padding:5px 8px;background:transparent;border:none;border-left:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:13px;line-height:1;"
+        onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
+    </div>`).join('');
+}
+
+// ── SAVE / LOAD PRODUCTS ──────────────────────────────────────────
+const LS_KEY = 'seller_products';
+let activeProduct = null;
+
+function getSaved(){ try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch(e){ return {}; } }
+function setSaved(data){ localStorage.setItem(LS_KEY, JSON.stringify(data)); }
+
+function openSaveModal(){
+  const input = g('save-name-input');
+  input.value = g('i-name').value || '';
+  g('save-modal').style.display = 'flex';
+  setTimeout(() => input.focus(), 50);
+}
+
+function closeSaveModal(){
+  g('save-modal').style.display = 'none';
+}
+
+function confirmSave(){
+  const name = g('save-name-input').value.trim();
+  if(!name) return;
+  const data = getSaved();
+  data[name] = {
+    ...captureUserSetup(),
+    name,
+    savedAt: new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }),
+    addlSnapshot: Object.values(additionals).map(m => ({ name:m.name, cost:m.cost })),
+  };
+  setSaved(data);
+  closeSaveModal();
+  renderSavedBar();
+  showToast(`"${name}" saved!`);
+}
+
+function loadProduct(name){
+  const data = getSaved();
+  const setup = data[name];
+  if(!setup) return;
+  resetAdditionals();
+  if(setup.addlSnapshot) setup.addlSnapshot.forEach(m => addAdditional(m.name, m.cost));
+  userSetup = setup;
+  applyFields(setup);
+  activeProduct = name;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.preset-btn').classList.add('active');
+  renderSavedBar();
+  showToast(`"${name}" loaded!`);
+}
+
+function deleteProduct(name){
+  const data = getSaved();
+  delete data[name];
+  setSaved(data);
+  if(activeProduct === name) activeProduct = null;
+  renderSavedBar();
+}
+
+function updateProduct(){
+  if(!activeProduct) return;
+  const data    = getSaved();
+  const newName = captureUserSetup().name || activeProduct;
+  if(newName !== activeProduct) delete data[activeProduct];
+  data[newName] = {
+    ...captureUserSetup(),
+    name: newName,
+    savedAt: new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }),
+    addlSnapshot: Object.values(additionals).map(m => ({ name:m.name, cost:m.cost })),
+  };
+  setSaved(data);
+  activeProduct = newName;
+  renderSavedBar();
+  showToast(`"${newName}" updated!`);
+}
+
+function renderSavedBar(){
+  const data  = getSaved();
+  const keys  = Object.keys(data);
+  const bar   = g('saved-bar');
+  const chips = g('saved-chips');
+
+  const updateBtn = g('btn-update-product');
+  if(updateBtn) updateBtn.style.display = activeProduct ? 'inline-flex' : 'none';
+
+  if(keys.length === 0){ bar.style.display = 'none'; return; }
+  bar.style.display = 'block';
+  chips.innerHTML = keys.map(name => {
+    const setup   = data[name];
+    const isActive = name === activeProduct;
+    return `<div style="display:inline-flex;align-items:center;background:${isActive ? 'rgba(59,97,198,0.1)' : 'var(--surface2)'};border:1px solid ${isActive ? 'var(--accent)' : 'var(--border2)'};border-radius:100px;overflow:hidden;">
+      <button onclick="loadProduct('${name.replace(/'/g,"\\'")}')" style="padding:6px 14px;background:transparent;border:none;font-family:var(--font-ui);font-size:12px;font-weight:600;color:${isActive ? 'var(--accent)' : 'var(--text)'};cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
+        <span>${name}</span>
+        <span style="font-size:10px;color:var(--text3);font-weight:400;">${setup.savedAt || ''}</span>
+      </button>
+      <button onclick="deleteProduct('${name.replace(/'/g,"\\'")}')" title="Delete"
+        style="padding:6px 10px;background:transparent;border:none;border-left:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:15px;line-height:1;"
+        onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">×</button>
+    </div>`;
+  }).join('');
+}
+
+// ── TOAST ──────────────────────────────────────────────────────────
+function showToast(msg){
+  let t = document.getElementById('toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;font-family:var(--font-ui);font-size:13px;font-weight:500;padding:10px 22px;border-radius:100px;box-shadow:0 4px 20px rgba(0,0,0,0.2);opacity:0;transition:all .3s ease;pointer-events:none;z-index:9999;white-space:nowrap;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  t.style.transform = 'translateX(-50%) translateY(0)';
+  clearTimeout(t._hide);
+  t._hide = setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transform = 'translateX(-50%) translateY(20px)';
+  }, 2500);
+}
+
+// ── EVENT LISTENERS ────────────────────────────────────────────────
+g('save-modal').addEventListener('click', function(e){ if(e.target === this) closeSaveModal(); });
+g('btn-save-product').addEventListener('click', openSaveModal);
+g('save-confirm-btn').addEventListener('click', confirmSave);
+g('save-name-input').addEventListener('keydown', e => { if(e.key === 'Enter') confirmSave(); });
+
+g('btn-manage-presets').addEventListener('click', () => openCustomPresetModal());
+g('cpm-confirm-btn').addEventListener('click', confirmCustomPreset);
+g('cpm-name').addEventListener('keydown', e => { if(e.key === 'Enter') confirmCustomPreset(); });
+g('custom-preset-modal').addEventListener('click', function(e){ if(e.target === this) closeCustomPresetModal(); });
+
+// ── SALE / VOUCHER SIMULATOR ──────────────────────────────────────
+let voucherType = 'percent';
+
+function setVoucherType(type){
+  voucherType = type;
+  const isPct = type === 'percent';
+  g('vtype-pct').style.background   = isPct ? 'var(--accent)' : 'var(--surface2)';
+  g('vtype-pct').style.color        = isPct ? '#fff' : 'var(--text2)';
+  g('vtype-fixed').style.background = isPct ? 'var(--surface2)' : 'var(--accent)';
+  g('vtype-fixed').style.color      = isPct ? 'var(--text2)' : '#fff';
+  g('voucher-suffix').textContent   = isPct ? '%' : currSymbol;
+  g('voucher-suffix').style.display = 'block';
+  calcVoucher();
+}
+
+function setQuickDiscount(pct){
+  voucherType = 'percent';
+  setVoucherType('percent');
+  g('i-voucher').value = pct;
+  calcVoucher();
+}
+
+function calcVoucher(){
+  const discountVal = parseFloat(g('i-voucher')?.value) || 0;
+  const price   = n('i-price');
+  const units   = n('i-units');
+
+  const vPrice  = g('v-price');
+  const vPayout = g('v-payout');
+  const vProfit = g('v-profit');
+  const vMargin = g('v-margin');
+  const vMonthly= g('v-monthly');
+  const vLost   = g('v-lost');
+  const vBanner = g('v-banner');
+  if(!vPrice) return;
+
+  if(discountVal <= 0 || price <= 0){
+    [vPrice,vPayout,vProfit,vMargin,vMonthly,vLost].forEach(el => el.textContent = '—');
+    ['v-price-sub','v-payout-sub','v-profit-sub','v-margin-sub','v-monthly-sub','v-lost-sub'].forEach(id => g(id).textContent = '');
+    vBanner.style.display = 'none';
+    return;
+  }
+
+  // Sale price
+  const salePrice = voucherType === 'percent'
+    ? price * (1 - discountVal / 100)
+    : price - discountVal;
+
+  if(salePrice < 0){
+    vPrice.textContent = 'Invalid'; vPrice.style.color = 'var(--red)';
+    vBanner.style.display = 'block';
+    vBanner.style.cssText = 'display:block;padding:13px 18px;border-radius:10px;font-size:13px;font-weight:500;letter-spacing:-.01em;background:rgba(232,64,64,0.08);border:1px solid rgba(232,64,64,0.25);color:var(--red)';
+    vBanner.textContent = '⚠️ Discount is larger than the selling price.';
+    return;
+  }
+
+  // Costs (mirror calc())
+  const cogs       = n('i-cogs');
+  const defectRate = p('i-defect');
+  const platform   = p('i-platform');
+  const affiliate  = p('i-affiliate');
+  const tax        = p('i-tax');
+  const packaging  = n('i-packaging');
+  const labor      = n('i-labor');
+  const adPerUnit  = units > 0 ? n('i-adspend') / units : 0;
+  const wastePerItem = cogs * defectRate / Math.max(1 - defectRate, 0.01);
+  const prodCost     = cogs + wastePerItem + packaging + labor + adPerUnit + getAddlTotal();
+
+  // Sale metrics
+  const platFee   = salePrice * platform;
+  const affFee    = salePrice * affiliate;
+  const taxFee    = salePrice * tax;
+  const netRev    = salePrice - platFee - affFee - taxFee;
+  const profit    = Math.round((netRev - prodCost) * 100) / 100;
+  const margin    = salePrice > 0 ? profit / salePrice : 0;
+  const monthly   = profit * units;
+
+  // Original metrics
+  const origPlatFee = price * platform;
+  const origAffFee  = price * affiliate;
+  const origTaxFee  = price * tax;
+  const origNetRev  = price - origPlatFee - origAffFee - origTaxFee;
+  const origProfit  = Math.round((origNetRev - prodCost) * 100) / 100;
+  const origMonthly = origProfit * units;
+  const profitLost  = origProfit - profit;
+  const monthlyLost = origMonthly - monthly;
+
+  const discountLabel = voucherType === 'percent' ? `${discountVal}% off` : `${fmt(discountVal)} off`;
+  const profitColor = profit > 0 ? 'var(--green)' : profit < 0 ? 'var(--red)' : 'var(--yellow)';
+  const marginColor = margin >= 0.2 ? 'var(--green)' : margin < 0 ? 'var(--red)' : 'var(--yellow)';
+  const lostColor   = profitLost > 0 ? 'var(--red)' : 'var(--green)';
+
+  vPrice.textContent  = fmt(salePrice);  vPrice.style.color = 'var(--text)';
+  g('v-price-sub').textContent  = `was ${fmt(price)} · ${discountLabel}`;
+
+  vPayout.textContent = fmt(netRev);
+  g('v-payout-sub').textContent = `after all fees`;
+
+  vProfit.textContent = fmt(profit); vProfit.style.color = profitColor;
+  g('v-profit-sub').textContent = origProfit !== 0 ? `was ${fmt(origProfit)}` : '';
+
+  vMargin.textContent = (margin * 100).toFixed(1) + '%'; vMargin.style.color = marginColor;
+  g('v-margin-sub').textContent = `was ${(salePrice > 0 ? origProfit / price * 100 : 0).toFixed(1)}%`;
+
+  vMonthly.textContent = fmt(monthly); vMonthly.style.color = profitColor;
+  g('v-monthly-sub').textContent = units > 0 ? `was ${fmt(origMonthly)}` : 'set monthly units';
+
+  vLost.textContent = fmt(Math.abs(profitLost)) + '/item'; vLost.style.color = lostColor;
+  g('v-lost-sub').textContent = units > 0 ? `${fmt(Math.abs(monthlyLost))}/month total` : '';
+
+  // Status banner
+  vBanner.style.display = 'block';
+  const bep = prodCost / Math.max(1 - platform - affiliate - tax, 0.01);
+  if(salePrice < bep){
+    vBanner.style.cssText = 'display:block;padding:13px 18px;border-radius:10px;font-size:13px;font-weight:500;letter-spacing:-.01em;background:rgba(232,64,64,0.08);border:1px solid rgba(232,64,64,0.25);color:var(--red)';
+    vBanner.innerHTML = `🔴 <strong>Selling at a loss.</strong> Break-even is ${fmt(bep)} — your sale price of ${fmt(salePrice)} is ${fmt(bep - salePrice)} below break-even. You lose ${fmt(Math.abs(profit))} per unit.`;
+  } else if(margin < 0.1){
+    vBanner.style.cssText = 'display:block;padding:13px 18px;border-radius:10px;font-size:13px;font-weight:500;letter-spacing:-.01em;background:rgba(245,166,35,0.08);border:1px solid rgba(245,166,35,0.3);color:var(--yellow)';
+    vBanner.innerHTML = `🟡 <strong>Very thin margin.</strong> You're still profitable but only ${(margin*100).toFixed(1)}% margin. You give up ${fmt(profitLost)} profit per unit${units > 0 ? ` (${fmt(monthlyLost)}/month)` : ''}.`;
+  } else {
+    vBanner.style.cssText = 'display:block;padding:13px 18px;border-radius:10px;font-size:13px;font-weight:500;letter-spacing:-.01em;background:rgba(26,184,122,0.08);border:1px solid rgba(26,184,122,0.25);color:var(--green)';
+    vBanner.innerHTML = `✅ <strong>Still profitable.</strong> You give up ${fmt(profitLost)} profit per unit${units > 0 ? ` · ${fmt(monthlyLost)}/month` : ''} but maintain a healthy ${(margin*100).toFixed(1)}% margin.`;
+  }
+}
+
+// ── PROFIT GOAL CALCULATOR ────────────────────────────────────────
+function calcGoal(){
+  const raw         = g('i-goal-profit') ? g('i-goal-profit').value.replace(/,/g,'') : '';
+  const goalMonthly = parseFloat(raw);
+  const unitsEl     = g('goal-units-out');
+  const priceEl     = g('goal-price-out');
+  const unitsSub    = g('goal-units-sub');
+  const priceSub    = g('goal-price-sub');
+  const applyUBtn   = g('btn-apply-goal-units');
+  const applyPBtn   = g('btn-apply-goal-price');
+  const summary     = g('goal-summary');
+
+  if(!unitsEl) return;
+
+  if(!raw || isNaN(goalMonthly) || goalMonthly <= 0){
+    unitsEl.textContent = '—'; priceEl.textContent = '—';
+    unitsSub.textContent = ''; priceSub.textContent = '';
+    applyUBtn.style.display = applyPBtn.style.display = 'none';
+    summary.style.display = 'none';
+    return;
+  }
+
+  // Re-derive current costs (mirrors calc())
+  const cogs       = n('i-cogs');
+  const defectRate = p('i-defect');
+  const platform   = p('i-platform');
+  const affiliate  = p('i-affiliate');
+  const tax        = p('i-tax');
+  const packaging  = n('i-packaging');
+  const labor      = n('i-labor');
+  const price      = n('i-price');
+  const units      = n('i-units');
+  const adPerUnit  = units > 0 ? n('i-adspend') / units : 0;
+
+  const wastePerItem  = cogs * defectRate / Math.max(1 - defectRate, 0.01);
+  const prodCost      = cogs + wastePerItem + packaging + labor + adPerUnit + getAddlTotal();
+  const feeRate       = platform + affiliate + tax;
+  const netRate       = Math.max(1 - feeRate, 0.01);
+  const platFee       = price * platform;
+  const affFee        = price * affiliate;
+  const taxFee        = price * tax;
+  const netRev        = price - platFee - affFee - taxFee;
+  const profitPerItem = Math.round((netRev - prodCost) * 100) / 100;
+
+  // Option A — units needed at current price
+  if(price <= 0){
+    unitsEl.textContent = '—';
+    unitsSub.textContent = 'Enter a selling price first';
+    unitsEl.style.color = 'var(--text3)';
+    applyUBtn.style.display = 'none';
+  } else if(profitPerItem <= 0){
+    unitsEl.textContent = '∞';
+    unitsSub.textContent = 'Not profitable at current price';
+    unitsEl.style.color = 'var(--red)';
+    applyUBtn.style.display = 'none';
+  } else {
+    const unitsNeeded = Math.ceil(goalMonthly / profitPerItem);
+    unitsEl.textContent  = unitsNeeded.toLocaleString() + ' units';
+    unitsSub.textContent = `at ${fmt(price)} × ${fmt(profitPerItem)} profit each`;
+    unitsEl.style.color  = 'var(--accent)';
+    unitsEl.dataset.value = unitsNeeded;
+    applyUBtn.style.display = 'inline-block';
+  }
+
+  // Option B — required price at current volume
+  if(units <= 0){
+    priceEl.textContent = '—';
+    priceSub.textContent = 'Enter target monthly units first';
+    applyPBtn.style.display = 'none';
+  } else {
+    const reqPrice = (prodCost + goalMonthly / units) / netRate;
+    priceEl.textContent  = fmt(reqPrice);
+    priceSub.textContent = `selling ${units} units/month`;
+    priceEl.dataset.value = reqPrice.toFixed(2);
+    applyPBtn.style.display = 'inline-block';
+  }
+
+  // Summary bar
+  if(profitPerItem > 0 && units > 0){
+    const currentMonthly = Math.round(profitPerItem * units);
+    const gap = goalMonthly - currentMonthly;
+    summary.style.display = 'block';
+    summary.innerHTML = gap > 0
+      ? `📊 You're currently making <strong>${fmt(currentMonthly)}/month</strong>. You need <strong>${fmt(gap)}</strong> more to hit your goal.`
+      : `✅ You're already hitting your goal! Current monthly profit: <strong>${fmt(currentMonthly)}</strong>.`;
+    summary.style.borderColor = gap > 0 ? 'rgba(59,97,198,0.15)' : 'rgba(26,184,122,0.25)';
+    summary.style.background  = gap > 0 ? 'rgba(59,97,198,0.07)' : 'rgba(26,184,122,0.07)';
+  } else {
+    summary.style.display = 'none';
+  }
+}
+
+function applyGoalUnits(){
+  const v = g('goal-units-out').dataset.value;
+  if(!v) return;
+  setFmt('i-units', v);
+  calc();
+  showToast('Target units updated!');
+}
+
+function applyGoalPrice(){
+  const v = g('goal-price-out').dataset.value;
+  if(!v) return;
+  setFmt('i-price', v);
+  calc();
+  showToast('Selling price updated!');
+}
+
+// ── DARK MODE ──────────────────────────────────────────────────────
+const MOON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+const SUN_SVG  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+
+function toggleDarkMode(){
+  document.body.classList.toggle('dark');
+  const isDark = document.body.classList.contains('dark');
+  localStorage.setItem('seller_dark_mode', isDark ? '1' : '0');
+  updateDarkBtn(isDark);
+}
+
+function updateDarkBtn(isDark){
+  const btn = g('btn-dark-mode');
+  btn.innerHTML  = isDark ? SUN_SVG : MOON_SVG;
+  btn.title      = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+  btn.style.color = isDark ? 'var(--yellow)' : '';
+}
+
+// ── INIT ───────────────────────────────────────────────────────────
+renderSavedBar();
+renderCustomPresetChips();
+const _savedDark = localStorage.getItem('seller_dark_mode') === '1';
+if(_savedDark) document.body.classList.add('dark');
+updateDarkBtn(_savedDark);
+calc();
+</script>
+</body>
+</html>
