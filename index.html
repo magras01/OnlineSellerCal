@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
+  html { scroll-behavior: smooth; }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
@@ -539,14 +540,14 @@
                   <input type="text" inputmode="numeric" id="i-target-profit" placeholder="e.g. 10" class="has-prefix" oninput="calcTargetPrice()">
                 </div>
               </div>
-              <div>
-                <div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;font-family:var(--font-ui);">Required selling price</div>
-                <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 13px;display:flex;align-items:center;justify-content:space-between;">
-                  <span style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--accent);" id="target-price-out">—</span>
-                  <button id="btn-apply-target" title="Apply to selling price" style="display:none;padding:4px 10px;background:var(--accent);border:none;border-radius:6px;font-family:var(--font-ui);font-size:11px;font-weight:600;color:#fff;cursor:pointer;" onclick="applyTargetPrice()">Use this</button>
+              <div class="field">
+                <label class="field-label">Required selling price</label>
+                <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 13px;display:flex;align-items:center;">
+                  <span style="font-family:var(--font-mono);font-size:13.5px;font-weight:600;color:var(--green);" id="target-price-out">—</span>
                 </div>
               </div>
             </div>
+            <button id="btn-apply-target" onclick="applyTargetPrice()" style="visibility:hidden;margin-top:10px;width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;font-family:var(--font-ui);font-size:12px;font-weight:600;color:#fff;cursor:pointer;">Use this price</button>
           </div>
         </div>
       </div>
@@ -1186,7 +1187,7 @@ function resetDefaults(){
   g('p-product').textContent = '—';
   g('p-price').textContent   = fmt(0);
   g('target-price-out').textContent = '—';
-  g('btn-apply-target').style.display = 'none';
+  g('btn-apply-target').style.visibility = 'hidden';
   ['k-cost','k-bep','k-profit','k-monthly','k-revenue','k-suggested'].forEach(id => g(id).textContent = fmt(0));
   g('k-margin').textContent = '0%';
   g('k-profit-card').className = g('k-margin-card').className = g('k-monthly-card').className = g('k-suggested-card').className = 'kpi blue';
@@ -1211,7 +1212,7 @@ function calcTargetPrice(){
 
   if(!raw || isNaN(targetProfit)){
     out.textContent = '—';
-    btn.style.display = 'none';
+    btn.style.visibility = 'hidden';
     return;
   }
 
@@ -1231,7 +1232,7 @@ function calcTargetPrice(){
 
   out.textContent = fmt(requiredPrice);
   out.dataset.price = requiredPrice.toFixed(2);
-  btn.style.display = 'inline-block';
+  btn.style.visibility = 'visible';
 }
 
 function applyTargetPrice(){
@@ -1245,7 +1246,7 @@ function applyTargetPrice(){
 function onPriceInput(){
   g('i-target-profit').value = '';
   g('target-price-out').textContent = '—';
-  g('btn-apply-target').style.display = 'none';
+  g('btn-apply-target').style.visibility = 'hidden';
   calc();
 }
 
@@ -1974,17 +1975,6 @@ function updateDarkBtn(isDark){
   btn.style.color = isDark ? 'var(--yellow)' : '';
 }
 
-// ── MOBILE: CENTER INPUT ON FOCUS ────────────────────────────────
-if('ontouchstart' in window){
-  document.addEventListener('focusin', function(e){
-    const el = e.target;
-    if(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'){
-      setTimeout(() => {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 300);
-    }
-  });
-}
 
 // ── INIT ───────────────────────────────────────────────────────────
 renderSavedBar();
