@@ -892,7 +892,7 @@ function setFmt(id, val){
 let addlId = 0;
 const additionals = {};
 
-function addAdditional(name='', cost=''){
+function addAdditional(name='', cost='', autoFocus=false){
   const id = ++addlId;
   additionals[id] = { name, cost: parseFloat(cost) || 0 };
   const row = document.createElement('div');
@@ -927,6 +927,12 @@ function addAdditional(name='', cost=''){
     </button>`;
   document.getElementById('addl-list').appendChild(row);
   updateAddlTotal();
+  if(autoFocus){
+    setTimeout(() => {
+      const nameInput = row.querySelector('input[type="text"]');
+      if(nameInput) nameInput.focus();
+    }, 50);
+  }
 }
 
 function removeAdditional(id){
@@ -1358,7 +1364,7 @@ document.getElementById('import-file-input').addEventListener('change', function
   importData(this.files[0]);
   this.value = '';
 });
-document.getElementById('btn-add-cost').addEventListener('click', () => addAdditional());
+document.getElementById('btn-add-cost').addEventListener('click', () => addAdditional('', '', true));
 
 // ── SHARE ─────────────────────────────────────────────────────────
 document.getElementById('btn-share').addEventListener('click', async function(){
@@ -1966,6 +1972,18 @@ function updateDarkBtn(isDark){
   btn.innerHTML  = isDark ? SUN_SVG : MOON_SVG;
   btn.title      = isDark ? 'Switch to light mode' : 'Switch to dark mode';
   btn.style.color = isDark ? 'var(--yellow)' : '';
+}
+
+// ── MOBILE: CENTER INPUT ON FOCUS ────────────────────────────────
+if('ontouchstart' in window){
+  document.addEventListener('focusin', function(e){
+    const el = e.target;
+    if(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'){
+      setTimeout(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+    }
+  });
 }
 
 // ── INIT ───────────────────────────────────────────────────────────
